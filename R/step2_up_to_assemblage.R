@@ -1,6 +1,8 @@
+
 # ----------------------------------------------- #
 # step 2- up to assemblage scale
 # organizing evolution data and ecoregion variables to GLMM analysis 
+# PS: I'm sorry for the long code
 # ------------------------------------------------ #
 
 #load packages and function
@@ -12,21 +14,22 @@ ecor<- readOGR(dsn=here("Data","Environment","Ecorregions", "terr-ecoregions-TNC
                         layer="tnc_terr_ecoregions")
 ecor <- ecor [which (ecor@data$WWF_REALM == "NT"), ] # subsetting to get Neotropical ecoregions
 ecor <- ecor [order (ecor@data$ECO_CODE, decreasing=F), ] # ordering
-#proj4string(ecor) <- crs(ecor) # setting projection
 
 # load environment data (ecoregion properties)
 env<-read.csv (here ("Data","Environment","env.csv"),h=T,sep=";",row.names=1)
 env <- env [order (rownames (env), decreasing=F),]
 env <- env [which (env$WWF_REALM == "NT"),]
 
-# bind env into ecoregion dataframe
+# bind environment into the ecoregion spatial dataframe
 ecor@data <- cbind (ecor@data, Forest=env$Forest)
 ecor@data <- cbind (ecor@data, count=seq(1:length(rownames(ecor@data)))) # count of ecoregions
+# check
 # plot(gBuffer (gCentroid (ecor, byid=T), byid=T, width=1))
 # sum(gIsValid(gBuffer (gCentroid (ecor, byid=T), byid=T, width=1), byid=TRUE)==FALSE)
 
 # ---------------------------------------------------------
 # load Sigmodontinae distribution data (shapefiles from Patton et al. 2015)
+
 rodent_data <- readOGR(dsn=here ("Data","Occurrence"),layer="Sigmodontinae SA")
 crs (rodent_data) <- crs (ecor) # reference coordinate
 rodent_data@data$binomial <- gsub (" ","_", rodent_data@data$binomial) # edit species names to match phylogeny and traits
@@ -45,35 +48,39 @@ rodent_data <- SpatialPolygonsDataFrame(a, nc90_df) # back into spatialPolygons
 #     col = rgb(0.5,0.1,0.1,alpha=0.05),
 #     border=rgb(0.1,0.1,0.1,alpha=0.2))# [grep ("Akodon", rodent_data@data$binomial),])
 
-## ------------------------------------------------------------------------ #
-# load evolutionary ancestral reconstruction (trait) per species
-## ------------------------------------------------------------------------ #
+## ------------------------------------------------------------------------------ #
+# load evolutionary ancestral reconstruction (trait) per species (saved in step 1)
+## ------------------------------------------------------------------------------ #
 
 evol_rates <- readRDS (here ("Output","res_step1_transitions_estimates_ages.rda"))
 
 ## average of tip-based metrics
-# number of nodes per species
-nnodes <- (lapply (evol_rates, function (i) sapply(i,"[[", "diet_total_nodes")))
+# number of nodes per species (reported in the beggining of results)
+nnodes <- (lapply (evol_rates, function (i) sapply(i,"[[", "total.nodes")))
 nnodes <- do.call (cbind,nnodes)
 mean(apply (nnodes,1,mean))
 sd(apply (nnodes,1,mean))
+
 # number of diet transitions per species
-prop_trans <-  (lapply (evol_rates, function (i) sapply(i,"[[", "diet_transitions")))
+prop_trans <-  (lapply (evol_rates, function (i) sapply(i,"[[", "transitions")))
 prop_trans <- do.call (cbind,prop_trans)
 mean(apply (prop_trans,1,mean))
 sd(apply (prop_trans,1,mean))
+
 # transition rates
-Trates <- (lapply (evol_rates, function (i) sapply(i,"[[", "diet_transitions_prop")))
+Trates <- (lapply (evol_rates, function (i) sapply(i,"[[", "prop.transitions")))
 Trates <- do.call (cbind,Trates)
 mean(apply (Trates,1,mean))
 sd(apply (Trates,1,mean))
+
 # stasis time
-Stime <- (lapply (evol_rates, function (i) sapply(i,"[[", "stasis_time")))
+Stime <- (lapply (evol_rates, function (i) sapply(i,"[[", "stasis.time")))
 Stime <- do.call (cbind,Stime)
 mean(apply (Stime,1,mean))
 sd(apply (Stime,1,mean))
+
 # last transition time
-Ltime <- (lapply (evol_rates, function (i) sapply(i,"[[", "time_last_transitions")))
+Ltime <- (lapply (evol_rates, function (i) sapply(i,"[[", "last.transition.time")))
 Ltime <- do.call (cbind,Ltime)
 mean(apply (Ltime,1,mean))
 sd(apply (Ltime,1,mean))
@@ -82,7 +89,7 @@ sd(apply (Ltime,1,mean))
 transition_rates <- lapply(evol_rates, function (i) 
   lapply (i, function (k)
     
-    k[,"diet_transitions_prop"])
+    k[,"prop.transitions"])
   
   )
 # melt to have a dataframe
@@ -92,7 +99,7 @@ transition_rates_df <- do.call (cbind.data.frame, transition_rates)
 stasis_time <- lapply(evol_rates, function (i) 
   lapply (i, function (k)
     
-    k[,"stasis_time"])
+    k[,"stasis.time"])
   )
 # melt to have a dataframe
 stasis_time_df <- do.call (cbind.data.frame, stasis_time)
@@ -102,7 +109,7 @@ time_last_transitions <- lapply(evol_rates, function (i)
   
   lapply (i, function (k)
     
-    k[,"time_last_transitions"])
+    k[,"last.transition.time"])
   
   )
 # melt to have a dataframe
@@ -163,7 +170,7 @@ row.names(time_last_transitions_df) [which (row.names(time_last_transitions_df) 
 # rownames(time_last_transitions_df) [which (rownames(time_last_transitions_df) %in% rodent_data@data$binomial != T)]
 rownames (transition_rates_df) <- rownames(time_last_transitions_df)
 
-# finally matching occurrence and diet transtition datasets
+# finally matching occurrence with datasets of diet transition rates 
 stasis_time_df <- stasis_time_df [rownames(stasis_time_df) %in% rodent_data@data$binomial,]
 transition_rates_df <- transition_rates_df [rownames(transition_rates_df) %in% rodent_data@data$binomial,]
 time_last_transitions_df <- time_last_transitions_df [rownames(time_last_transitions_df) %in% rodent_data@data$binomial,]
@@ -172,32 +179,31 @@ time_last_transitions_df <- time_last_transitions_df [rownames(time_last_transit
 # rownames (stasis_time_df) == rownames(time_last_transitions_df)
 
 # ------------------------------------------------------------- #
-# range maps for spcies with ancestral character estimates
+# range maps for species with ancestral character estimates
 # ------------------------------------------------------------- #
 
 rodent_data  <- rodent_data  [which (rodent_data@data$binomial %in% rownames (time_last_transitions_df)),]
-
-plot(rodent_data,
-     col = rgb(0.5,0.1,0.1,alpha=0.05),
-     border=rgb(0.1,0.1,0.1,alpha=0.2))# [grep ("Akodon", rodent_data@data$binomial),])
+# plot
+# plot(rodent_data,# [grep ("Akodon", rodent_data@data$binomial),]) # if you want choose a genera
+#      col = rgb(0.5,0.1,0.1,alpha=0.05),
+#      border=rgb(0.1,0.1,0.1,alpha=0.2))
 
 # ------------------------------------------------ #
 # 		start  spatial analysis
 #      cropping ecoregions according to rodent data
 # ------------------------------------------------- #
 
-## SA_ecor <- crop (ecor, rodent_data)
-
-SA_ecor <- over (rodent_data,ecor,returnList=T)#
-SA_ecor <- ecor [which (ecor@data$ECO_CODE %in% unique(unlist(lapply (SA_ecor, function (i) unique(i$ECO_CODE))))),]
-
-#plot(SA_ecor)
-#plot(rodent_data [grep ("Akodon", rodent_data@data$binomial),],col="green",add=T)
-#plot(SA_ecor)
-#plot(rodent_data [grep ("Oligoryzomys", rodent_data@data$binomial),],col="green",add=T)
+SA_ecor <- over (rodent_data,ecor,returnList=T) # over rodent occurrence on ecoregions
+SA_ecor <- ecor [which (ecor@data$ECO_CODE %in% 
+                          unique(unlist(lapply (SA_ecor, function (i) unique(i$ECO_CODE))))),] # ecor with rodent data
+# check
+# plot(SA_ecor)
+# plot(rodent_data [grep ("Akodon", rodent_data@data$binomial),],col="green",add=T)
+# plot(SA_ecor)
+# plot(rodent_data [grep ("Oligoryzomys", rodent_data@data$binomial),],col="green",add=T)
 
 # model raster from worldclim
-#worldRaster <- getData('worldclim',var='alt',res=2.5)
+# worldRaster <- getData('worldclim',var='alt',res=2.5) # run if you don't have these data yet
 worldRaster <- raster (here("wc2-5","alt.bil"))
 # crop the world raster based on ecoregions
 SA_raster <- crop (worldRaster,SA_ecor)
@@ -210,7 +216,7 @@ SA_raster_EA<-projectRaster (SA_raster,
 SA_ecor_EA <- spTransform(SA_ecor,
                        CRS = "+proj=laea +x_0=0 +y_0=0 +lon_0=-56 +lat_0=-15 +datum=WGS84" )
 
-## obter as coordenadas de cada celula
+# coordinates of each cell
 points_raster <- as.data.frame(coordinates (SA_raster_EA))
 points_raster <- SpatialPointsDataFrame(coords = as.data.frame (points_raster), 
                                         data = points_raster,
@@ -220,48 +226,48 @@ points_raster <- SpatialPointsDataFrame(coords = as.data.frame (points_raster),
 #plot(points_raster,cex=0.1,pch=19)
 #plot(SA_ecor_EA,border="red",add=T)
 
-## sobrepor pontos com as ecoregioes
+## overlap points/coords with ecoregions
 over_pts_ecor <- lapply (as.list(SA_ecor_EA@data$ECO_CODE), function (i) 
   over (points_raster, SA_ecor_EA[which (SA_ecor_EA@data$ECO_CODE == i),]))
-## remover o que n?o sobrepoe
+## remove what don't overlap
 over_pts_ecor <- lapply (over_pts_ecor, function (i) 
   points_raster [which (i$ECO_CODE != "NA"),])
 
-#
-## list of ecoregions
-SA_ecor_list <- lapply (as.list (seq(1,length (SA_ecor_EA))), function (i) SA_ecor_EA[i,])
+## list of ecoregions with data
+SA_ecor_list <- lapply (as.list (seq(1,length (SA_ecor_EA))), function (i) 
+  SA_ecor_EA[i,]
+  )
 # unlist(lapply (SA_ecor_list, function (i) i$ECO_CODE)) == SA_ecor_EA@data$ECO_CODE
 
+# ----------------------------------------------------
 # measuring point distance to the ecoregion edge
-
-################################
-## parallel-processing settings
-require (parallel)
-cl <- makeCluster(6) ## number of cores = generally ncores -1
-
-# exportar pacote para os cores
+## in parallel 
+nc<- 4
+cl <- makeCluster(nc) ## number of cores = generally ncores -1
+# export packages to the cluster
 clusterEvalQ(cl, library(raster))
-
 # export your data and function
 clusterExport(cl, c("SA_ecor_list",
                     "over_pts_ecor"))
-
+# run point distance function
 distances_pts_to_edge <- parLapply (cl, seq (1,length (SA_ecor_list)), function (i)
-
+  
+  # (all points and their distance to ecoregion edges)
   pointDistance(over_pts_ecor[[i]], geom(SA_ecor_list [[i]])[,c("x","y")])
+  
 
 )
 
-stopCluster (cl)
+stopCluster (cl) # close cluster
 
-# save
-# saveRDS (distances_pts_to_edge, here ("Output","res_step2_distances_pts_to_edge.rda"))
-## load if needed (all points and their distance to ecoregion edges)
+# save as "distances_pts_to_edge" last a lot to run
+saveRDS (distances_pts_to_edge, here ("Output","res_step2_distances_pts_to_edge.rda"))
+# and load again after it's saved 
 distances_pts_to_edge <- readRDS (here ("Output",
                                         "res_step2_distances_pts_to_edge.rda"))
 
-# removing ecoregions with too few points
-# npoints per ecoregion
+# removing ecoregions with too few points (<20)
+# N points per ecoregion
 subsetting_data <- unlist(lapply(over_pts_ecor, function (i)
   nrow (i@coords)
 ))
@@ -283,18 +289,19 @@ names (buffer_min) <- SA_ecor2@data$ECO_CODE
 ## points of max distance from the edge
 points_max_dist <- lapply (seq (1,length(over_pts_ecor2)), function (i) 
   # subsetting and putting in order
-  as(over_pts_ecor2 [[i]][order(apply (distances_pts_to_edge2[[i]],1,min),decreasing=T),][1:10,],
+  as(over_pts_ecor2 [[i]][order(apply (distances_pts_to_edge2[[i]],1,min),decreasing=T),][1:10,],# the 10 first points
      'SpatialPoints')) # to then transform into spatial points
 # check
 # apply (distances_pts_to_edge2[[i]],1,max)[order(apply (distances_pts_to_edge2[[i]],1,max),decreasing=T)][1:10]
 
 # buffer around
 buffer_max <- lapply (points_max_dist, function (i) 
-  gBuffer(i, byid=T,width=13200))
+  gBuffer(i, byid=T,width=13200)) # 13200 m - more or less a buffer of 0.125 latlong degrees 
 names (buffer_max) <- SA_ecor2@data$ECO_CODE
 
 # # check plot
 # plot(SA_ecor2[1,])
+# i<-1
 # plot(points_min_dist[[i]],add=T,col="red",pch=3)
 # plot(buffer_min[[i]],add=T,col="black",pch=1)
 # plot(points_max_dist[[1]],add=T,pch=3)
@@ -311,30 +318,27 @@ buffer_t <- lapply (points_all_dist, function (i)
   gBuffer(i, byid=T,width=13200))
 names (buffer_t) <- SA_ecor2@data$ECO_CODE
 
-###### superimposing rodent data on points
-
+# ----------------------------------------------
+# superimposing rodent data on points
 # transform rodent data into lambert equal area projection
 rodent_data_EA <- spTransform(rodent_data,
                               CRS = "+proj=laea +x_0=0 +y_0=0 +lon_0=-56 +lat_0=-15 +datum=WGS84" )
 
-
-## exploracao da relacao entre a area da ecoregiao e o range dos roedores
-# sobrepor os shapes
-
+## relationship between ecoregion area and rodent range size
+# analysis of small-ranged species
 overlap_pol <- over (SA_ecor_EA, rodent_data_EA,returnList = TRUE)
 
-## pegar a area da ecoregiao e a area do range das sp
+## ecoregion area
 area_ecor <- as.list(gArea(SA_ecor_EA,byid=T))#[which(unlist(lapply (overlap_pol,nrow)) != 0)])
 
-## colocar em um DF o numero de sp com distribuicao menor do que a ecoregiao
-
+## DF to host the  number of species with range smaller than ecoregion area
 area_rodent <- lapply (overlap_pol, function (i) 
     
   rodent_data_EA[which(rodent_data_EA@data$binomial %in% rownames(i)),]
   
   )
-# area in lambert proj
 
+# area in lambert proj
 area_rodent<- lapply (area_rodent, function (i) 
   
   gArea(i,byid=T)
@@ -346,31 +350,30 @@ sp_smaller_range <- lapply (seq(1,length(area_rodent)), function (i)
   cbind(smaller=table (area_rodent[[i]] <= area_ecor[[i]])[2],
         total=sum(table (area_rodent[[i]] <= area_ecor[[i]]))))
 
-## proporcao de sp com o range menor do que a ecoregiao
+## proportion of spp with range smaller than ecoregion area
 prop_smaller <- unlist(lapply (seq(1,length (sp_smaller_range)), function (i)
   sp_smaller_range[[i]][,'smaller']/sp_smaller_range[[i]][,'total']))
 
-## trocando NAs (i.e., nenhuma sp sobrepoe, ou nenhuma sp tem range menor do que a area da ecoregiao)
+## replacing NAs by zero (i.e., no spp, or no spp with range small than ecoregion area)
 prop_smaller [is.na(prop_smaller)] <- 0
 SA_ecor_EA@data <- cbind (SA_ecor_EA@data, 
                           prop_smaller=prop_smaller)
 
-## 
-require(ggplot2)
-
+# -----------------------------------
+## Map of supporting information  (Fig. S5)
 cores <- data.frame (cores=prop_smaller,NM_MUNICIP=SA_ecor_EA@data$ECO_ID_U)
 f.mun<-fortify(SA_ecor_EA, region="ECO_ID_U")
 f.mun<- cbind (f.mun, prop= cores [match (f.mun$id, cores$NM_MUNICIP),]$cores)
-
+# plot
 a.mean <- ggplot() + geom_polygon (data=SA_ecor_EA, aes(x=long, y=lat, group=group),
                                    size = 0.3, fill="gray85", colour="gray45",alpha=0.5) +
-  coord_fixed (ratio = 1)+#xlim = c(-80, -34),  ylim = c(-58, 10), ) +
+  coord_fixed (ratio = 1)+
   theme_bw() + xlab("") + ylab("") +
   theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
         axis.text.x = element_blank(),axis.ticks.x=element_blank(),
         axis.text.y = element_blank(),axis.ticks.y=element_blank())
 a.mean
-
+# map
 b.mean <- a.mean+geom_polygon (data=f.mun, aes (x=long, y=lat,group=group,fill=prop),colour = "black", size=0.1) + 
   scale_fill_gradient2 (low='white',mid='red',high='darkred', midpoint = 0.5,
                         name="Proportion",
@@ -378,6 +381,7 @@ b.mean <- a.mean+geom_polygon (data=f.mun, aes (x=long, y=lat,group=group,fill=p
   ggtitle ("Proportion of species with range size\n        smaller than ecoregion area")
 b.mean
 
+# save
 ggsave(filename = here ("Output",
                         "Figures_small_ranges",
                         "proportion_small_range.pdf"),family="serif")
@@ -449,7 +453,7 @@ names(sp_by_point_max) <- SA_ecor2$ECO_CODE
 sp_by_point_min <- lapply (buffer_min, function (i) over (i,rodent_data_EA, returnList = TRUE))
 names(sp_by_point_min) <- SA_ecor2$ECO_CODE
 
-### a identidade das ecoregioes e dos pontos 
+### identity of ecoregions and points
 # cores
 nomes_ecor_max <- unlist(lapply (seq (1,length (names(sp_by_point_max ))), function (k) 
 			         lapply (seq (1,length (sp_by_point_max[[k]])), function (i)
@@ -459,10 +463,10 @@ nomes_ecor_min <- unlist(lapply (seq (1,length (names(sp_by_point_min))), functi
 			lapply (seq (1,length (sp_by_point_min[[k]])), function (i)
 			paste(names(sp_by_point_min)[k], i,sep="."))))
 
-### selecionar sp exclusivas de cada porcao da eecoregiao
+### species exclusive from cores and ecotones
 # core spp
-core_species <- lapply (seq (1,length(sp_by_point_max)), function (i) # cada ecoregiao
-			lapply (seq (1,10), function (k) # cada ponto
+core_species <- lapply (seq (1,length(sp_by_point_max)), function (i) 
+			lapply (seq (1,10), function (k) 
 				tryCatch (			
 				  sp_by_point_max[[i]][[k]] [which(sp_by_point_max[[i]][[k]]$binomial %in% sp_by_point_min[[i]][[k]]$binomial==F),]
 
@@ -484,7 +488,7 @@ ecotone_species <- lapply (seq (1,length(sp_by_point_min)), function (i) # cada 
 			)
 	)
 
-## ajustar nomes
+## adjust names
 names (core_species)<- names(sp_by_point_max) 
 names (ecotone_species)<- names(sp_by_point_min) 
 # species id
@@ -540,7 +544,7 @@ filtered_ecotone_species <- filtering_ecotone_species [lapply (filtering_ecotone
 list_core_spp <- unique(unlist(sapply (filtered_core_species , function (i) sapply (i, "[", "binomial"))))
 list_ecotone_spp <- unique(unlist(sapply (filtered_ecotone_species, function (i) sapply (i, "[", "binomial"))))
 
-# only 26 spp are exclusive of either habitat
+# only 24 spp are exclusive of either habitat
 table(
   list_core_spp %in% list_ecotone_spp
 )
@@ -551,10 +555,10 @@ stat<- lapply (evol_rates, function (i)
   lapply (i, function (k){
   
           dados <- k
-          stat <- data.frame (meanCore=mean(dados [which(rownames(dados) %in% list_core_spp),"diet_total_nodes"]),
-                              sdCore = sd(dados [which(rownames(dados) %in% list_core_spp),"diet_total_nodes"]),
-                            meanEcotone=mean(dados [which(rownames(dados) %in% list_ecotone_spp),"diet_total_nodes"]),
-                            sdEcotone =sd(dados [which(rownames(dados) %in% list_ecotone_spp),"diet_total_nodes"]))
+          stat <- data.frame (meanCore=mean(dados [which(rownames(dados) %in% list_core_spp),"total.nodes"]),
+                              sdCore = sd(dados [which(rownames(dados) %in% list_core_spp),"total.nodes"]),
+                            meanEcotone=mean(dados [which(rownames(dados) %in% list_ecotone_spp),"total.nodes"]),
+                            sdEcotone =sd(dados [which(rownames(dados) %in% list_ecotone_spp),"total.nodes"]))
           ;
           stat
 }))
@@ -569,10 +573,10 @@ stat<- lapply (evol_rates, function (i)
   lapply (i, function (k){
     
     dados <- k
-    stat <- data.frame (meanCore=mean(dados [which(rownames(dados) %in% list_core_spp),"diet_transitions_prop"]),
-                        sdCore = sd(dados [which(rownames(dados) %in% list_core_spp),"diet_transitions_prop"]),
-                        meanEcotone=mean(dados [which(rownames(dados) %in% list_ecotone_spp),"diet_transitions_prop"]),
-                        sdEcotone =sd(dados [which(rownames(dados) %in% list_ecotone_spp),"diet_transitions_prop"]))
+    stat <- data.frame (meanCore=mean(dados [which(rownames(dados) %in% list_core_spp),"prop.transitions"]),
+                        sdCore = sd(dados [which(rownames(dados) %in% list_core_spp),"prop.transitions"]),
+                        meanEcotone=mean(dados [which(rownames(dados) %in% list_ecotone_spp),"prop.transitions"]),
+                        sdEcotone =sd(dados [which(rownames(dados) %in% list_ecotone_spp),"prop.transitions"]))
     ;
     stat
   }))
@@ -587,10 +591,10 @@ stat<- lapply (evol_rates, function (i)
   lapply (i, function (k){
     
     dados <- k
-    stat <- data.frame (meanCore=mean(dados [which(rownames(dados) %in% list_core_spp),"stasis_time"]),
-                        sdCore = sd(dados [which(rownames(dados) %in% list_core_spp),"stasis_time"]),
-                        meanEcotone=mean(dados [which(rownames(dados) %in% list_ecotone_spp),"stasis_time"]),
-                        sdEcotone =sd(dados [which(rownames(dados) %in% list_ecotone_spp),"stasis_time"]))
+    stat <- data.frame (meanCore=mean(dados [which(rownames(dados) %in% list_core_spp),"stasis.time"]),
+                        sdCore = sd(dados [which(rownames(dados) %in% list_core_spp),"stasis.time"]),
+                        meanEcotone=mean(dados [which(rownames(dados) %in% list_ecotone_spp),"stasis.time"]),
+                        sdEcotone =sd(dados [which(rownames(dados) %in% list_ecotone_spp),"stasis.time"]))
     ;
     stat
   }))
@@ -605,10 +609,10 @@ stat<- lapply (evol_rates, function (i)
   lapply (i, function (k){
     
     dados <- k
-    stat <- data.frame (meanCore=mean(dados [which(rownames(dados) %in% list_core_spp),"time_last_transitions"]),
-                        sdCore = sd(dados [which(rownames(dados) %in% list_core_spp),"time_last_transitions"]),
-                        meanEcotone=mean(dados [which(rownames(dados) %in% list_ecotone_spp),"time_last_transitions"]),
-                        sdEcotone =sd(dados [which(rownames(dados) %in% list_ecotone_spp),"time_last_transitions"]))
+    stat <- data.frame (meanCore=mean(dados [which(rownames(dados) %in% list_core_spp),"last.transition.time"]),
+                        sdCore = sd(dados [which(rownames(dados) %in% list_core_spp),"last.transition.time"]),
+                        meanEcotone=mean(dados [which(rownames(dados) %in% list_ecotone_spp),"last.transition.time"]),
+                        sdEcotone =sd(dados [which(rownames(dados) %in% list_ecotone_spp),"last.transition.time"]))
     ;
     stat
   }))
@@ -617,7 +621,10 @@ stat<- lapply (evol_rates, function (i)
 sim_means <- do.call (rbind, lapply(stat, function (i) apply (do.call (rbind,i),2,mean,na.rm=T)))
 apply(sim_means,2,mean)
 
-###################### 
+# --------------------------------------------------------------
+# --------------------------------------------------------------
+# --------------------------------------------------------------
+
 # scale up species-level rates to point per ecoregion scale
 # always considering different phylogenies and simulations
 
@@ -641,7 +648,8 @@ mean_tran_rates_max  <- lapply (seq(1,ncol(transition_rates_df)), function (m)
 
 mean_tran_rates_maxDF  <- lapply(mean_tran_rates_max,unlist)
 
-saveRDS (mean_tran_rates_minDF, here ("Output","res_step2_mean_tran_rates_maxCORE.rda"))
+saveRDS (mean_tran_rates_minDF, here ("Output",
+                                      "res_step2_mean_tran_rates_maxCORE.rda"))
 
 ##########################
 # stasis time min
@@ -654,7 +662,7 @@ mean_stasis_time_min  <- lapply (seq(1,ncol(stasis_time_df )), function (m)
 mean_stasis_time_minDF <- lapply(mean_stasis_time_min,unlist)
 
 saveRDS (mean_tran_rates_minDF, here ("Output","res_step2_mean_stasis_time_minECOT.rda"))
-#
+
 ## stasis time max
 mean_stasis_time_max  <- lapply (seq(1,ncol(stasis_time_df )), function (m)
 				lapply (filtered_core_species, function (k)
@@ -733,12 +741,8 @@ pd_list <- lapply (seq(1,length (pd_core)), function (i)
 save (pd_list, file = here ("Output","res_step2_phylogenetic_div.RData"))
 
 ############################################################ 
-
 # covariates of ecoregion points and neighborhood 
-
-## come?ar a montar o dataframe com nomes e dados de evolu??o
-#list_names <- lapply (as.list (SA_ecor2@data$ECO_CODE), function (i) rep (i,10))
-#data_analysis <- data.frame (ecoreg=unlist(lapply (list_names, function (j) lapply (as.list(seq(1,10)), function (i) paste (j,i,sep=".")[1]))))
+# start the creating of the dataframe for analyses
 
 data_analysis <- rbind (data.frame (point=melt(id_ecor_pts_core)[,1],
 			ecoreg = melt(id_ecor_pts_core)[,2],
@@ -773,8 +777,8 @@ buffer_min_filtered <- lapply (seq(1,length(id_ecor_pts_ecotone)), function (i)
 names(buffer_min_filtered ) <- names(id_ecor_pts_ecotone)
 #
 ##########################################
-## area media das ecoregioes vizinhas dos pontos
-# primeiro obter a area de todas as ecoregioes
+## average area of neighbor ecoregions
+# 1st: obtain the area of all ecoregions
 
 areas <- lapply (SA_ecor2@polygons, function (i)
 			
@@ -784,8 +788,8 @@ areas <- lapply (SA_ecor2@polygons, function (i)
 names (areas) <- SA_ecor2@data$ECO_CODE
 
 # neighborhood
-## if the neighbor is different or not of each ecoregion
-## over to obtain ecoregion in each buffer around each point (considering core position)
+## knowing if the neighbor is different or not of each ecoregion
+## over is used to obtain ecoregion in each buffer around each point (considering core position)
 nb_ecor_max <- lapply (buffer_max, function (i) 
 	
 	over(i,SA_ecor2, returnList=T)
@@ -799,7 +803,8 @@ nb_ecor_max_type <- lapply (nb_ecor_max, function (i)
 
 ## Ordering ecoregion ids
 ## IDs in the correct order
-nb_ecor_max_type <- do.call (rbind.data.frame, nb_ecor_max_type) [order (do.call (rbind.data.frame, nb_ecor_max_type)$count, decreasing=F),]
+nb_ecor_max_type <- do.call (rbind.data.frame, 
+                             nb_ecor_max_type) [order (do.call (rbind.data.frame, nb_ecor_max_type)$count, decreasing=F),]
 # ecoregion = neighbor ecoregion
 nb_ecor_max_type <- cbind(nb_ecor_max_type, 
 				number=substr(rownames(nb_ecor_max_type),8,12), 
@@ -811,22 +816,20 @@ hab_max <- lapply (seq (1,nrow (nb_ecor_max_type)), function (i)
 nb_ecor_max_type <- cbind(nb_ecor_max_type, 
                           hab_neigh=unlist (hab_max))
 
-## saber qual ponto sobrepoe ecoregiao ABERTA ou FLORESTAL
+## knowing whether the neighbor is a forest- or open-habitat ecoregion
 ecor_over_max <- table (nb_ecor_max_type$number, nb_ecor_max_type$hab_neigh)
 ecor_over_max <- matrix (ecor_over_max, ncol=2, byrow=F)
 rownames (ecor_over_max) <- rownames(table (nb_ecor_max_type$number, nb_ecor_max_type$hab_neigh))
-## botando em ordem dos pontos nas ecoregions
+## ordering
 ecor_over_max <- ecor_over_max [match(unique (nb_ecor_max_type$number), rownames(ecor_over_max)),]
 colnames(ecor_over_max) <- c("over_AB", "over_FOR")
-#
 ecor_over_max <- ecor_over_max[match (substr(rownames (nb_ecor_max_type), 8,15), rownames(ecor_over_max)),]
 rownames(ecor_over_max) == substr(rownames (nb_ecor_max_type), 8,15)
 
-
-## 
+## bind the obtained type habitat
 nb_ecor_max_type <- cbind(nb_ecor_max_type,ecor_over_max)
 
-# dados das vizinhas
+# neighbor data
 unique_count <- unique (nb_ecor_max_type$count)
 compar <- lapply (seq(1,length (unique_count)), function (i)
 	nb_ecor_max_type [which (nb_ecor_max_type$count == unique_count[i]),c("ECO_CODE", "ecoregion")])
@@ -834,9 +837,8 @@ vizinhas <- lapply (compar, function (i)
 	data.frame(area=ifelse (as.character (i [,1]) != as.character (i[,2]),  paste(i[,-1]),"NA"),
 	row.names = rownames(i)))
 
-### ID DAS VIZINHAS
+### neighbor ID and area
 id_vizinhas <-lapply (vizinhas, function (i) i[,"area"])
-
 area_viz <- lapply (id_vizinhas, function (i) 
 		lapply (seq(1,length (i)), function (k)
 	
@@ -856,8 +858,7 @@ area_viz <- lapply (area_viz, function (i)
 nb_ecor_max_type <- cbind (nb_ecor_max_type, 
                            area_vizinho=unlist(area_viz))
 
-## soma da ?rea dos vizinhos de cada ponto
-
+## sum of neighbors area (core of ecoregions)
 sum_area_viz_max <- with(nb_ecor_max_type,
 	aggregate (area_vizinho,by=list(number),FUN=sum,na.rm=T))
 sum_over_ABE_viz_max <- with(nb_ecor_max_type,
@@ -881,39 +882,34 @@ nb_ecor_min <- lapply (buffer_min, function (i)
 nb_ecor_min_type <- lapply (nb_ecor_min, function (i) 
 	do.call (rbind.data.frame,i))
 
-## ordenamento porque no meio do count de cada ecoregiao tem a id da regiao vizinha,
-## assim, a ID da regiao vizinha vai ficar no lugar correto
+## ordering because, together with the ecoregion, we have the id of its neighbor(s)
+## ordering will let neighbor's ID in the correct place
 nb_ecor_min_type <- do.call (rbind.data.frame, nb_ecor_min_type) [order (do.call (rbind.data.frame, nb_ecor_min_type)$count, decreasing=F),]
-# ecoregion = ecoregiao vizinha
+# ecoregion = neighbor
 nb_ecor_min_type <- cbind(nb_ecor_min_type, 
 				number=substr(rownames(nb_ecor_min_type),8,12), 
 				ecoregion=substr(rownames(nb_ecor_min_type),1,6))
 
-# a que habitat pertecem as ecoregioes dentro dos buffers
-
+# habitat of ecoregions within the buffer
 hab_min <- lapply (seq (1,nrow (nb_ecor_min_type)), function (i)
 	paste(ecor@data [which (ecor@data$ECO_CODE %in% nb_ecor_min_type$ecoregion[i]) ,"Forest"]))
 
 nb_ecor_min_type <- cbind(nb_ecor_min_type, hab_neigh=unlist (hab_min))
 
-## saber o numero de ecoregioes vizinhas que sobrepoe, por tipo de hab ABERTA ou FLORESTAL
+## the number of neighbors (ecoregions that overlap the buffer around each point)
 ecor_over_min <- table (nb_ecor_min_type$number, nb_ecor_min_type$hab_neigh)
 ecor_over_min <- matrix (ecor_over_min, ncol=2, byrow=F)
 rownames (ecor_over_min) <- rownames(table (nb_ecor_min_type$number, nb_ecor_min_type$hab_neigh))
-## botando em ordem dos pontos nas ecoregions
+## ordering
 ecor_over_min <- ecor_over_min [match(unique (nb_ecor_min_type$number), rownames(ecor_over_min)),]
 colnames(ecor_over_min) <- c("over_AB", "over_FOR")
-
-##
-#
 ecor_over_min <- ecor_over_min[match (substr(rownames (nb_ecor_min_type), 8,15), rownames(ecor_over_min)),]
 table(rownames(ecor_over_min) == substr(rownames (nb_ecor_min_type), 8,15))
 
 ## 
 nb_ecor_min_type <- cbind(nb_ecor_min_type,ecor_over_min)
 
-## area media das vizinhas
-# dados das vizinhas
+## neighbors area
 unique_count <- unique (nb_ecor_min_type$count)
 compar <- lapply (seq(1,length (unique_count)), function (i)
 	nb_ecor_min_type [which (nb_ecor_min_type$count == unique_count[i]),c("ECO_CODE", "ecoregion")])
@@ -922,7 +918,7 @@ vizinhas <- lapply (compar, function (i)
 	data.frame(area=ifelse (as.character (i [,1]) != as.character (i[,2]),  paste(i[,-1]),"NA"),
 	row.names = rownames(i)))
 
-### ID DAS VIZINHAS
+### neighbor ID and area
 id_vizinhas <-lapply (vizinhas, function (i) i[,"area"])
 
 area_viz <- lapply (id_vizinhas, function (i) lapply (seq(1,length (i)), function (k)
@@ -942,7 +938,7 @@ area_viz <- lapply (area_viz, function (i)
 
 nb_ecor_min_type <- cbind (nb_ecor_min_type, area_vizinho=unlist(area_viz))
 
-## soma da ?rea dos vizinhos de cada ponto
+## sum of neighbors area (now for ecotones)
 sum_area_viz_min <- with(nb_ecor_min_type,
 	aggregate (area_vizinho,by=list(number),FUN=sum,na.rm=T))
 sum_over_ABE_viz_min <- with(nb_ecor_min_type,
@@ -953,13 +949,13 @@ sum_area_viz_min <- data.frame(Group.1=sum_area_viz_min [,1],
 	area_viz=sum_area_viz_min [,2],
 	over_AB=sum_over_ABE_viz_min[,2] ,
 	over_FOR=sum_over_FOR_viz_min[,2] )
-			
-# sum_area_viz_min <- sum_area_viz_min [unique(nb_ecor_min_type$number),]
-
-###  add habitat que cada ponto sobrepoe
 
 #########################################
-# nomes das ecoregioes, pontos, e vizinhos
+# names of ecoregions, points, and neighbors
+### create different dataframes with data
+# max = ecotone
+# min = core
+
 sum_area_viz_max <- cbind (sum_area_viz_max, 
 	ecoreg = SA_ecor2 [match (substr (sum_area_viz_max$Group.1,1,3), 
 		rownames (SA_ecor2@data)),]$ECO_CODE,
@@ -970,8 +966,9 @@ sum_area_viz_min <- cbind (sum_area_viz_min,
 			rownames (SA_ecor2@data)),]$ECO_CODE,
 	point = rep (seq(1,10),length(buffer_min)))
 
-### colar os dados com caracteristicas das ecoregioes e seus vizinhos
-# agora pegar as linhas (ponto, ecoreg) destas tabelas dos vizinhos para as quais temos dados
+### create different dataframes with data
+# max = ecotone
+# min = core
 
 subset_neighborhood_data_max <- lapply (seq(1,length(id_ecor_pts_core)), function (i) {
 
@@ -982,7 +979,6 @@ subset_neighborhood_data_max <- lapply (seq(1,length(id_ecor_pts_core)), functio
 	}
 )
 
-
 subset_neighborhood_data_min <- lapply (seq(1,length(id_ecor_pts_ecotone)), function (i) {
 
 	subset_ecoreg <- sum_area_viz_min [which(sum_area_viz_min$ecoreg %in% names(id_ecor_pts_ecotone)[i]),]
@@ -992,18 +988,15 @@ subset_neighborhood_data_min <- lapply (seq(1,length(id_ecor_pts_ecotone)), func
 	}
 )
 
-## colar coordenadas
+## bind coordinates into the DF
 coord_max <- do.call(rbind.data.frame, lapply (buffer_max_filtered, coordinates))
 coord_min <- do.call(rbind.data.frame, lapply (buffer_min_filtered, coordinates))
-
-### colar os dados no DF de analise
-
 data_analysis <- cbind(data_analysis,
 		coordinates = rbind (coord_max,	
 						            coord_min)
 	)
 	
-## colar a area media das ecoregioes vizinhas
+## bind neighbors area
 data_analysis<- cbind (data_analysis, 
 				neigh_area=c(do.call(rbind,
 							subset_neighborhood_data_max
@@ -1013,7 +1006,7 @@ data_analysis<- cbind (data_analysis,
 							)$area_viz)
 			)
 
-## colar o numero medio de vizinhas com veg aberta
+## bind data of open-habitat neighbors
 data_analysis<- cbind (data_analysis, 
 				over_AB=c(do.call(rbind,
 							subset_neighborhood_data_max
@@ -1023,7 +1016,7 @@ data_analysis<- cbind (data_analysis,
 							)$over_AB)
 			)
 
-## colar o numero medio de vizinhas com veg florestal
+## bind data of forest-habitat neighbors
 data_analysis<- cbind (data_analysis, 
 				over_FOR=c(do.call(rbind,
 							subset_neighborhood_data_max
@@ -1033,19 +1026,18 @@ data_analysis<- cbind (data_analysis,
 							)$over_FOR)
 			)
 
-
-## colar o tipo de habitat da ecoregiao foco
+## ecoregion habitat
 data_analysis<- cbind (data_analysis, 
 	tipo_hab=SA_ecor2@data [match (substr (data_analysis$ecoreg, 1,6), 
 			SA_ecor2@data$ECO_CODE),"Forest"])
 
-## colar a interacao entre position e habitat type
+## interaction between position and habitat type
 data_analysis <- cbind(data_analysis, 
 			int_pos_hab = 
 				paste(data_analysis$position,
 					data_analysis$tipo_hab,sep=""))
 
-#### ver se a ecoregiao esta na mata atlantica
+#### Atlantic Rainforest ecoregions
 # from https://github.com/LEEClab/ATLANTIC-limits/blob/master/limites_wgs94.rar
 
 mata_atlantica<-readOGR(dsn=here ("Data","Environment","MAtl"),layer="limite_ma_wwf_200ecprregions_wgs84")
@@ -1054,42 +1046,43 @@ mata_atlantica<-spTransform(mata_atlantica,
                             crs(SA_ecor2))
 # crop ecor based on atlantic rainf
 MA_ecor <- crop (SA_ecor2, mata_atlantica)
-### excluindo aquelas ecoregioes de outros biomas que caem dentro da MA
-## (base artigo renan ecography)
+### excluding ecoregions out of MA limites
+## (based on Maestri et al. 2019 Ecography)
 MA_ecor <- MA_ecor [1:10,] 
-### inserindo no data_frame de variaveis
+### bind MA data into the DF
 mata_atl <- ifelse (data_analysis$ecoreg %in% MA_ecor@data$ECO_CODE, 1,0)
 data_analysis <- cbind (data_analysis, mata_atl= mata_atl)
 
-### ver se a ecoregiao ocorre nos andes
+### Andean ecoregions
 andes<-readOGR(dsn=here ("Data","Environment",'andes'),
                layer="Lowenberg_Neto_2015")
 # tranform into lambert projection
 andes<- spTransform (andes,
                      crs(SA_ecor2))
 
-## quais estao nos andes centrais (base artigo renan ecography)
+## Ecoregions of central andes (Maestri et al. 2019 Ecography)
 subset_andes <- andes [-c(1,13,14,15,16,8,9,2,3,10,11),]
 andes_ecor <- over (subset_andes,
                     SA_ecor2 )
 
-## inserindo no data_frame de variaveis
+## Bind into the DF
 andes_eco <- ifelse (data_analysis$ecoreg %in% andes_ecor$ECO_CODE, 1,0)
 data_analysis <- cbind (data_analysis , andes_eco = andes_eco )
 
-### update ecoregioes de analise
+### analyzed ecoregions
 SA_ecor3 <- SA_ecor2[which (SA_ecor2$ECO_CODE %in% data_analysis$ecoreg),]
 
 #______________________________________________
 # area of ecoregions
-mean(gArea (SA_ecor3,byid=T))/1000
-sd(gArea (SA_ecor3,byid=T))/1000
+mean(gArea (SA_ecor3,byid=T))/1000 # km
+sd(gArea (SA_ecor3,byid=T))/1000 # km
 
 # extent of the area
 mean(gArea (SA_ecor[which(SA_ecor$ECO_CODE %in% SA_ecor3$ECO_CODE),],by=T))
 
 # supporting information FigS1
 # point position
+dir.create(here("Output","Figures"))
 png(here("Output",
          "Figures",
          "Fig_S1AB.png"), width=20, height=15, units="cm", res=300, family="serif")
@@ -1140,7 +1133,7 @@ data_analysis <- cbind (data_analysis,
 saveRDS (data_analysis, 
          file=here ("Output","res_step2_analysis_DF.rda"))
 
-
+# read it again
 data_analysis <- readRDS(here ("Output","res_step2_analysis_DF.rda"))
 
 # mean of covariates (Table 1)
@@ -1192,7 +1185,7 @@ with (data_analysis,
 filt3<-mst.nb (dist(coordinates(points_CAR_pol)))
 filt3
 
-### testando autocorrelacao espacial
+### data frame for the test of spatual autocorrelation
 data_autoc_test <- data.frame(data_analysis,
 			                    TR = c(rowMeans(do.call(cbind,mean_tran_rates_maxDF)),
 			                           rowMeans(do.call(cbind,mean_tran_rates_minDF))),
@@ -1223,7 +1216,6 @@ with(data_autoc_test,
 
 
 # finally, bind data analysis dataset to each assemblage level tip based metric data set (produced by each phylogeny) 
-
 # data aTR
 dataTR <- lapply (seq (1,length(mean_tran_rates_maxDF)), function (i)
 	
