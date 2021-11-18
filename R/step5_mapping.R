@@ -1,6 +1,6 @@
 
 # -----------------------------------------
-# Step 4, mapping and supporting information
+# Step 5, mapping and supporting information
 # -----------------------------------------
 
 #load packages and functions
