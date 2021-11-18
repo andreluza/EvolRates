@@ -26,18 +26,16 @@ comp <- lapply(seq(1,length (no_aut_subB)), function (i)
   anova (no_aut_subB [[i]], teste_exp_subB[[i]],
          test=F))
 
-#save(comp,file="comparacao_noAut_exp_TR.RData")
-
 # compare AIC
 table (unlist(lapply (seq(1,length (comp)), function (i) 
   comp[[i]]$AIC[1] < comp[[i]]$AIC[2])))/length (comp)
 table(lapply (seq (1,length (comp)), function (i) 
   comp [[i]]$AIC[1] - comp [[i]]$AIC[2]) > 2)
 
-## valores medios dos parametros
+## Average AIC
 apply (do.call (rbind.data.frame, lapply (seq(1,length (teste_exp_subB)), function (i) 
   comp[[i]]$AIC)),2,mean)
-## desvio padrao
+## SD
 apply (do.call (rbind.data.frame, lapply (seq(1,length (teste_exp_subB)), function (i) 
   comp[[i]]$AIC)),2,sd)
 
@@ -46,10 +44,7 @@ compB <- lapply(seq(1,length (teste_exp_nugget_subB)), function (i)
   anova (
   teste_exp_subB [[i]], teste_exp_nugget_subB[[i]],test=F))
 
-# save(compB,file="comparacao_exp_nugget_rates.RData")
-# load("comparacao_exp_nugget_rates.RData")
-## quantas vezes sem auto teve AIC menor do que com autoc
-# lower AIC
+# lower AIC is better
 test1 <- table (unlist(lapply (seq(1,length (compB)), function (i) 
   compB[[i]]$AIC[1] < compB[[i]]$AIC[2])))
 test1/length(compB)
@@ -57,18 +52,16 @@ test1/length(compB)
 test2<-table (lapply (seq (1,length (compB)), function (i) 
   compB [[i]]$AIC[1] - compB [[i]]$AIC[2]) > 2)  
 test2/length(compB)
-## fica com modelo exponencial com efeito nugget
 
-## valores medios dos parametros
+## Average AIC
 apply (do.call (rbind.data.frame, lapply (seq(1,length (compB)), function (i) 
   compB[[i]]$AIC)),2,mean)
-## desvio padrao
+## SD
 apply (do.call (rbind.data.frame, lapply (seq(1,length (compB)), function (i) 
   compB[[i]]$AIC)),2,sd)
 
-################## obter valores medios dos parametros
-
-## VALORES DOS PARAMETROS
+# -------------------------------------------------------
+# averaged params of the best ranked model
 ## fixed effects
 
 coef_table <- lapply(teste_exp_subB, function (i) summary (i)$tTable)
@@ -96,6 +89,7 @@ sd (unlist(res_sd<- lapply (rdn_table, function (i) as.numeric (i[2,2]))))
 ## 
 rdn_mean <- mean (as.numeric(unlist(rdn_table)))
 rdn_sd <- sd(as.numeric(unlist(rdn_table )))
+
 ### spatial structure
 space_table <- lapply(seq(1,length (teste_exp_subB)), function (i) 
   coef(teste_exp_subB[[i]]$modelStruct$corStruct, unconstrained = F))
@@ -111,42 +105,14 @@ sd(space_mean_range[c(1:100)])
 # in km scale
 mean(space_mean_range)/1000
 sd(space_mean_range[c(1:100)])/1000
-# nugget effect
-#(space_mean_nugget <- mean (unlist(lapply (seq (1,length (space_table)), function (i) space_table [[i]][2]))))
-#(space_sd_nugget <- sd(unlist(lapply (seq (1,length (space_table)), function (i) space_table [[i]][2]))))
+# no nugget effect
 
 # ------------------------------------------------------
 # data for density plots
 
-todos_os_parametros <- lapply (as.list(seq(1,nrow(list.mean))), function (k) ### for each line in model output
+all_params <- lapply (as.list(seq(1,nrow(list.mean))), function (k) ### for each line in model output
   lapply (as.list (seq(1,length (coef_table))), function (i) ## and for each simulation (ACE x phylogeny)
     round (coef_table[[i]][k,1],3))) ### get the intercept (average tip based metric)
-
-## average values of parameters (same as list.mean)
-# mean
-#lapply(
-#  lapply(todos_os_parametros, unlist),
-#  mean)
-## sd
-#lapply(
-#  lapply(todos_os_parametros, unlist),
-#  sd)
-## do all overlap zero?
-#data.frame (q5=unlist(lapply(
-#  lapply(todos_os_parametros, unlist),
-#  quantile, .05)),
-#  q95=unlist(lapply(
-#    lapply(todos_os_parametros, unlist),
-#    quantile, .95)))
-#
-## cores para o histograma; o ultimo numero eh transparencia
-#red: rgb(1,0,0,1)
-#green: rgb(0,1,0,1)
-#blue: rgb(0,0,1,1)
-#gray: rgb(0.5,0.5,0.5,1)
-#yellow: rgb(1,0.9,0,1)
-#purple: rgb(1,0,1,1)
-#orange: rgb(1,0.5,0,1)
 
 ## params
 variaveis <- c("Intercept",
@@ -159,14 +125,14 @@ variaveis <- c("Intercept",
                "Andes",
                "Ecotone-Forest")
 
-lapply (seq(2,9), function (i) {
+lapply (seq(2,9), function (i) { # except the intercept [[1]]
   
-  df.plot <- rbind (data.frame (Value = unlist(todos_os_parametros[[1]]),
+  df.plot <- rbind (data.frame (Value = unlist(all_params[[1]]),
                                 Parameter  = variaveis[1],
-                                grp.mean = mean(unlist(todos_os_parametros[[1]]))),
-                    data.frame (Value=unlist(todos_os_parametros[[1]])+ (unlist(todos_os_parametros[[i]])),
+                                grp.mean = mean(unlist(all_params[[1]]))),
+                    data.frame (Value=unlist(all_params[[1]])+ (unlist(all_params[[i]])),
                                 Parameter = "Ecotone",
-                                grp.mean = mean(unlist(todos_os_parametros[[1]])+ (unlist(todos_os_parametros[[i]])))))
+                                grp.mean = mean(unlist(all_params[[1]])+ (unlist(all_params[[i]])))))
   
   #### plot density
   
@@ -211,7 +177,7 @@ lapply (seq(2,9), function (i) {
   
   
   # plot and save each density plot
-  pdf (here ("Output","Figures_small_ranges", 
+  pdf (here ("Output","Figures_small_ranged", 
              paste ("compTR",variaveis[i],".pdf",sep="")), 
        width=4,height=3,family="serif")
   
@@ -261,20 +227,18 @@ test2<- table(lapply (seq (1,length (comp)), function (i)
   comp [[i]]$AIC[1] - comp [[i]]$AIC[2]) > 2)
 test2/length(comp)
 
-## valores medios dos parametros
+## average AIC
 apply (do.call (rbind.data.frame, lapply (seq(1,length (teste_exp_subB)), function (i) 
   comp[[i]]$AIC)),2,mean)
-## desvio padrao
+##SD
 apply (do.call (rbind.data.frame, lapply (seq(1,length (teste_exp_subB)), function (i) 
   comp[[i]]$AIC)),2,sd)
 
-# compare nugget and wihtout nugget
+# compare nugget and without nugget
 compB <- lapply(seq(1,length (teste_exp_nugget_subB)), function (i) anova (
   teste_exp_subB [[i]], teste_exp_nugget_subB[[i]],test=F))
 
-# save(compB,file="comparacao_exp_nugget_rates.RData")
-# load("comparacao_exp_nugget_rates.RData")
-## quantas vezes sem auto teve AIC menor do que com autoc
+## lower AIC is better
 test1<-table (unlist(lapply (seq(1,length (compB)), function (i) 
   compB[[i]]$AIC[1] < compB[[i]]$AIC[2])))
 test1/length(compB)
@@ -283,20 +247,16 @@ test2<-table (lapply (seq (1,length (compB)), function (i)
   compB [[i]]$AIC[1] - compB [[i]]$AIC[2]) > 2)
 test2/length(compB)
 
-## fica com modelo exponencial com efeito nugget
-
-## valores medios dos parametros
+## averaged AIC
 apply (do.call (rbind.data.frame, lapply (seq(1,length (compB)), function (i) 
   compB[[i]]$AIC)),2,mean)
-## desvio padrao
+## SD
 apply (do.call (rbind.data.frame, lapply (seq(1,length (compB)), function (i) 
     compB[[i]]$AIC)),2,sd)
 
-################## obter valores medios dos parametros
-
-## VALORES DOS PARAMETROS
+# -------------------------------------------------
+# average params for the best ranked model
 ## fixed effects
-
 coef_table <- lapply(teste_exp_subB, function (i) summary (i)$tTable)
 ## mean
 list.mean <- Reduce("+", coef_table) / length(coef_table)
@@ -322,7 +282,7 @@ sd (unlist(res_sd<- lapply (rdn_table, function (i) as.numeric (i[2,2]))))
 ## 
 rdn_mean <- mean (as.numeric(unlist(rdn_table)))
 rdn_sd <- sd(as.numeric(unlist(rdn_table )))
-### spatial structure
+
 ### spatial structure
 space_table <- lapply(seq(1,length (teste_exp_subB)), function (i) 
   coef(teste_exp_subB[[i]]$modelStruct$corStruct, unconstrained = F))
@@ -338,12 +298,12 @@ sd(space_mean_range[c(1:100)])
 # in km scale
 mean(space_mean_range)/1000
 sd(space_mean_range[c(1:100)])/1000
-# nugget effect
+# no nugget effect
 
 # ------------------------------------------------------
 # data for density plots
 
-todos_os_parametros <- lapply (as.list(seq(1,nrow(list.mean))), function (k) ### for each line in model output
+all_params <- lapply (as.list(seq(1,nrow(list.mean))), function (k) ### for each line in model output
   lapply (as.list (seq(1,length (coef_table))), function (i) ## and for each simulation (ACE x phylogeny)
     round (coef_table[[i]][k,1],3))) ### get the intercept (average tip based metric)
 
@@ -360,12 +320,12 @@ variaveis <- c("Intercept",
 
 lapply (seq(2,9), function (i) {
   
-  df.plot <- rbind (data.frame (Value = unlist(todos_os_parametros[[1]]),
+  df.plot <- rbind (data.frame (Value = unlist(all_params[[1]]),
                                 Parameter  = variaveis[1],
-                                grp.mean = median(unlist(todos_os_parametros[[1]]))),
-                    data.frame (Value=unlist(todos_os_parametros[[1]])+ (unlist(todos_os_parametros[[i]])),
+                                grp.mean = median(unlist(all_params[[1]]))),
+                    data.frame (Value=unlist(all_params[[1]])+ (unlist(all_params[[i]])),
                                 Parameter = "Ecotone",
-                                grp.mean = median(unlist(todos_os_parametros[[1]])+ (unlist(todos_os_parametros[[i]])))))
+                                grp.mean = median(unlist(all_params[[1]])+ (unlist(all_params[[i]])))))
   
   #### plot density
   
@@ -409,7 +369,7 @@ lapply (seq(2,9), function (i) {
     scale_y_continuous(limits=c(0, 5)) + coord_flip() 
   
   
-  pdf (here ("Output","Figures_small_ranges",paste ("compST",variaveis[i],".pdf",sep="")), 
+  pdf (here ("Output","Figures_small_ranged",paste ("compST",variaveis[i],".pdf",sep="")), 
        width=5,height=4,family="serif")
   grid.arrange(p1,b,ncol=4,nrow = 4,
                layout_matrix = rbind (c(1,1,1,1),
@@ -444,8 +404,6 @@ comp <- lapply(seq(1,length (no_aut_subB)), function (i)
   anova (no_aut_subB [[i]], teste_exp_subB[[i]],
          test=F))
 
-#save(comp,file="comparacao_noAut_exp_TR.RData")
-
 # compare AIC
 test1<-table (unlist(lapply (seq(1,length (comp)), function (i) 
   comp[[i]]$AIC[1] < comp[[i]]$AIC[2])))
@@ -455,10 +413,10 @@ test2<-table (lapply (seq (1,length (comp)), function (i)
   comp [[i]]$AIC[1] - comp [[i]]$AIC[2]) > 2)
 test2/length(comp)
 
-## valores medios dos parametros
+## averaged AIC
 apply (do.call (rbind.data.frame, lapply (seq(1,length (teste_exp_subB)), function (i) 
   comp[[i]]$AIC)),2,mean)
-## desvio padrao
+## SD
 apply (do.call (rbind.data.frame, lapply (seq(1,length (teste_exp_subB)), function (i) 
   comp[[i]]$AIC)),2,sd)
 
@@ -466,9 +424,7 @@ apply (do.call (rbind.data.frame, lapply (seq(1,length (teste_exp_subB)), functi
 compB <- lapply(seq(1,length (teste_exp_nugget_subB)), function (i) anova (
   teste_exp_subB [[i]], teste_exp_nugget_subB[[i]],test=F))
 
-# save(compB,file="comparacao_exp_nugget_rates.RData")
-# load("comparacao_exp_nugget_rates.RData")
-## quantas vezes sem auto teve AIC menor do que com autoc
+## lower AIC is better
 test1<-table (unlist(lapply (seq(1,length (compB)), function (i) 
   compB[[i]]$AIC[1] < compB[[i]]$AIC[2])))
 test1/length(compB)
@@ -476,17 +432,15 @@ test1/length(compB)
 test2<-table (lapply (seq (1,length (compB)), function (i) 
   compB [[i]]$AIC[1] - compB [[i]]$AIC[2]) > 2)
 test2/length(compB)
-## fica com modelo exponencial com efeito nugget
 
-## valores medios dos parametros
+## averaged AIC
 apply (do.call (rbind.data.frame, lapply (seq(1,length (compB)), function (i) 
   compB[[i]]$AIC)),2,mean)
-## desvio padrao
+## SD
 apply (do.call (rbind.data.frame, lapply (seq(1,length (compB)), function (i) compB[[i]]$AIC)),2,sd)
 
-################## obter valores medios dos parametros
-
-## VALORES DOS PARAMETROS
+# -------------------------------------------------------
+# averaged parameter values
 ## fixed effects
 
 coef_table <- lapply(teste_exp_subB, function (i) summary (i)$tTable)
@@ -514,7 +468,7 @@ sd (unlist(res_sd<- lapply (rdn_table, function (i) as.numeric (i[2,2]))))
 ## 
 rdn_mean <- mean (as.numeric(unlist(rdn_table)))
 rdn_sd <- sd(as.numeric(unlist(rdn_table )))
-### spatial structure
+
 ### spatial structure
 space_table <- lapply(seq(1,length (teste_exp_subB)), function (i) 
   coef(teste_exp_subB[[i]]$modelStruct$corStruct, unconstrained = F))
@@ -530,11 +484,12 @@ sd(space_mean_range[c(1:100)])
 # in km scale
 mean(space_mean_range)/1000
 sd(space_mean_range[1000:1020],na.rm=T)/1000
-# nugget effect
+# no nugget effect
+
 # ------------------------------------------------------
 # data for density plots
 
-todos_os_parametros <- lapply (as.list(seq(1,nrow(list.mean))), function (k) ### for each line in model output
+all_params <- lapply (as.list(seq(1,nrow(list.mean))), function (k) ### for each line in model output
   lapply (as.list (seq(1,length (coef_table))), function (i) ## and for each simulation (ACE x phylogeny)
     round (coef_table[[i]][k,1],3))) ### get the intercept (average tip based metric)
 
@@ -549,14 +504,14 @@ variaveis <- c("Intercept",
                "Andes",
                "Ecotone-Forest")
 
-lapply (seq(2,9), function (i) {
+lapply (seq(2,9), function (i) { # except the intercept [[1]]
   
-  df.plot <- rbind (data.frame (Value = unlist(todos_os_parametros[[1]]),
+  df.plot <- rbind (data.frame (Value = unlist(all_params[[1]]),
                                 Parameter  = variaveis[1],
-                                grp.mean = median(unlist(todos_os_parametros[[1]]))),
-                    data.frame (Value=unlist(todos_os_parametros[[1]])+ (unlist(todos_os_parametros[[i]])),
+                                grp.mean = median(unlist(all_params[[1]]))),
+                    data.frame (Value=unlist(all_params[[1]])+ (unlist(all_params[[i]])),
                                 Parameter = "Ecotone",
-                                grp.mean = median(unlist(todos_os_parametros[[1]])+ (unlist(todos_os_parametros[[i]])))))
+                                grp.mean = median(unlist(all_params[[1]])+ (unlist(all_params[[i]])))))
   
   #### plot density
   
@@ -601,7 +556,7 @@ lapply (seq(2,9), function (i) {
     scale_y_continuous(limits=c(0, 13)) + coord_flip() 
   
   
-  pdf (here ("Output","Figures_small_ranges",paste ("compLT",variaveis[i],".pdf",sep="")), 
+  pdf (here ("Output","Figures_small_ranged",paste ("compLT",variaveis[i],".pdf",sep="")), 
        width=5,height=4,family="serif")
   grid.arrange(p1,b,ncol=4,nrow = 4,
                layout_matrix = rbind (c(1,1,1,1),
