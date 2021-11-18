@@ -8,7 +8,7 @@ source("R/packages.R")
 source("R/other_functions.R")
 
 # load modeling data
-load(here ("Output","res_step2_data_for_GLMM_small_ranged.RData"))
+load(here ("Output","small_ranges_output","res_step2_data_for_GLMM_small_ranged.RData"))
 
 ## settings
 ctrl <- lmeControl(opt='optim',
@@ -21,8 +21,9 @@ sample_estimates <- sample(seq(1,length(dataTR)),2000)
 
 # and save it to have the record
 save(sample_estimates, 
-     file=here ("Output","res_step3_sample_estimates_small_ranged.RData"))
-load(file=here ("Output","res_step3_sample_estimates_small_ranged.RData"))
+     file=here ("Output","small_ranges_output","res_step3_sample_estimates_small_ranged.RData"))
+# load if needed in the future
+load(file=here ("Output","small_ranges_output","res_step3_sample_estimates_small_ranged.RData"))
 
 # obtain subsets of the complete datasets
 dataTR_sub <- dataTR[sample_estimates]
@@ -68,7 +69,7 @@ teste_exp_nugget  <- parLapply (cl,dataTR_sub, function (i) {
 stopCluster (cl)
 
 table(unlist(lapply(teste_exp_nugget,is.character)))
-save(teste_exp_nugget,file=here ("Output","res_step3_model_exp_nugget_TR_small_ranged.RData"))
+save(teste_exp_nugget,file=here ("Output","small_ranges_output","res_step3_model_exp_nugget_TR_small_ranged.RData"))
 
 # --------------------------------------------
 # MODELO WITH AUTOCORRELATION BUT NO NUGGET EFFECT
@@ -97,7 +98,7 @@ teste_exp  <- parLapply (cl, dataTR_sub, function (i) {
 stopCluster (cl)
 # check convergence issues
 # table (unlist (lapply (teste_exp, is.character)))
-save(teste_exp,file=here ("Output","res_step3_model_exp_TR_small_ranged.RData"))
+save(teste_exp,file=here ("Output","small_ranges_output","res_step3_model_exp_TR_small_ranged.RData"))
 
 ### modelo sem autoc espacial
 
@@ -123,7 +124,7 @@ no_aut <- parLapply (cl, dataTR_sub, function (i) {
 stopCluster (cl)
 # check convergence issues
 #table (unlist (lapply (no_aut, is.character)))
-save(no_aut, file=here ("Output","res_step3_modelNoaut_TR_small_ranged.RData"))
+save(no_aut, file=here ("Output","small_ranges_output","res_step3_modelNoaut_TR_small_ranged.RData"))
 
 ###################################
 #### STASIS TIME
@@ -164,7 +165,7 @@ stopCluster (cl)
 
 ## no convergence problem!
 table (unlist (lapply (teste_exp_nugget, is.null)))
-save (teste_exp_nugget, file=here ("Output","res_step3_teste_exp_nugget_ST_small_ranged.RData"))
+save (teste_exp_nugget, file=here ("Output","small_ranges_output","res_step3_teste_exp_nugget_ST_small_ranged.RData"))
 
 ## MODELO COM AUTOCORRELACAO SEM EFEITO NUGGET
 cl <- makeCluster(ncores) ## number of cores = generally ncores -1
@@ -187,7 +188,7 @@ teste_exp  <- parLapply (cl, dataST_sub, function (i) {
 	}
 )
 stopCluster (cl)
-save(teste_exp,file=here ("Output","res_step3_model_exp_ST_small_ranged.RData"))
+save(teste_exp,file=here ("Output","small_ranges_output","res_step3_model_exp_ST_small_ranged.RData"))
 
 ### modelo sem autoc espacial
 cl <- makeCluster(ncores) ## number of cores = generally ncores -1
@@ -210,7 +211,7 @@ no_aut<- parLapply (cl, dataST_sub, function (i) {
 )
 stopCluster (cl)
 	
-save(no_aut, file=here ("Output","res_step3_modelNoaut_ST_small_ranged.RData"))
+save(no_aut, file=here ("Output","small_ranges_output","res_step3_modelNoaut_ST_small_ranged.RData"))
 
 ###################################
 #### LAST TRANSITION TIME
@@ -251,7 +252,7 @@ stopCluster(cl)
 
 ## no convergence problem!
 table (unlist (lapply (teste_exp_nugget, is.null)))
-save (teste_exp_nugget, file=here ("Output","res_step3_teste_exp_nugget_LT_small_ranged.RData"))
+save (teste_exp_nugget, file=here ("Output","small_ranges_output","res_step3_teste_exp_nugget_LT_small_ranged.RData"))
 
 
 ## MODELO COM AUTOCORRELACAO SEM EFEITO NUGGET
@@ -278,7 +279,7 @@ teste_exp  <- parLapply (cl, dataLT_sub, function (i) {
 stopCluster (cl)
 
 table (unlist (lapply (teste_exp, is.null)))
-save(teste_exp,file=here ("Output","res_step3_model_exp_LT_small_ranged.RData"))
+save(teste_exp,file=here ("Output","small_ranges_output","res_step3_model_exp_LT_small_ranged.RData"))
 
 ### modelo sem autoc espacial
 cl <- makeCluster(ncores) ## number of cores = generally ncores -1
@@ -302,6 +303,6 @@ no_aut<- parLapply (cl, dataLT_sub, function (i) {
 stopCluster(cl)
 
 table (unlist (lapply (no_aut, is.null)))	
-save(no_aut, file=here ("Output","res_step3_modelNoaut_LT_small_ranged.RData"))
+save(no_aut, file=here ("Output","small_ranges_output","res_step3_modelNoaut_LT_small_ranged.RData"))
 
 # end

@@ -1,6 +1,6 @@
 
 # ---------------------------------
-#        GLMMM
+#      step 3:  GLMMM
 # ---------------------------------
 
 #load packages and functions
@@ -16,13 +16,15 @@ ctrl <- lmeControl(opt='optim',
                    msMaxIter =  1e+08)
 
 # too hard have estimates for each phylogeny
-# lets get a subset of 1000 samples
-#sample_estimates <- sample(seq(1,length(dataTR)),2000)
+# lets get a subset of 2000 samples
+sample_estimates <- sample(seq(1,length(dataTR)),2000)
 
 # and save it to have the record
-#save(sample_estimates, 
-#     file=here ("Output","res_step3_sample_estimates.RData"))
-load(file=here ("Output","res_step3_sample_estimates.RData"))
+save(sample_estimates, 
+     file=here ("Output","res_step3_sample_estimates.RData"))
+
+# load if needed in the future
+# load(file=here ("Output","res_step3_sample_estimates.RData"))
 
 # obtain subsets of the complete datasets
 dataTR_sub <- dataTR[sample_estimates]
@@ -36,7 +38,7 @@ dataTR_sub <- lapply (dataTR_sub, function (i) {
 })
 
 # ncores to use throughout analyses
-ncores<- 6
+ncores<- 4
 
 # complete model with spatial autocorrelation term
 
